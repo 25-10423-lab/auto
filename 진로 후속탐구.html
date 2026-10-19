@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>베이즈 정리와 자율 주행차 | 후배들을 위한 탐구 가이드</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Google Fonts: Gowun Dodum (구운돋움) & Jua (주아) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap" rel="stylesheet">
+
+    <!-- Tailwind Custom Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ivory: {
+                            DEFAULT: '#FAF6F0',
+                            light: '#FDFBF7',
+                            dark: '#F0E8DC'
+                        },
+                        dgreen: {
+                            DEFAULT: '#1E4D2B',
+                            light: '#2D6A3D',
+                            soft: '#E8F3EB',
+                            dark: '#13351C'
+                        },
+                        brown: {
+                            DEFAULT: '#5D4037',
+                            light: '#7B5244',
+                            soft: '#F4ECE8'
+                        }
+                    },
+                    fontFamily: {
+                        dodum: ['Gowun Dodum', 'sans-serif'],
+                        jua: ['Jua', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Base styles */
+        body {
+            font-family: 'Gowun Dodum', sans-serif;
+            background-color: #FAF6F0;
+            color: #1E4D2B;
+            overflow-x: hidden;
+        }
+
+        /* Smooth Scrolling */
+        html {
+            scroll-behavior: smooth;
+            scroll-padding-top: 5rem;
+        }
+
+        /* Splash Screen Animation */
+        #splash-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            background-color: #FAF6F0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.8s ease-out, visibility 0.8s;
+        }
+
+        .car-splash-icon {
+            animation: carZoomEffect 2.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            color: #1E4D2B;
+        }
+
+        @keyframes carZoomEffect {
+            0% {
+                transform: scale(0.2) rotate(-6deg);
+                opacity: 0;
+            }
+            35% {
+                transform: scale(1.1) rotate(2deg);
+                opacity: 1;
+            }
+            70% {
+                transform: scale(1.4);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(28);
+                opacity: 0;
+            }
+        }
+
+        /* Hover Card Transitions */
+        .hover-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .hover-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 14px 28px -10px rgba(30, 77, 43, 0.18);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #FAF6F0;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1E4D2B;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-ivory text-dgreen min-h-screen flex flex-col selection:bg-dgreen selection:text-ivory-light">
+
+    <!-- 1. OPENING SPLASH ANIMATION (초록색 자동차 아이콘 확대) -->
+    <div id="splash-screen" class="px-4 text-center">
+        <div class="relative flex items-center justify-center">
+            <div class="absolute w-36 h-36 rounded-full bg-dgreen-soft animate-ping opacity-60"></div>
+            <!-- Green SVG Car Icon -->
+            <svg class="w-24 h-24 sm:w-28 sm:h-28 car-splash-icon drop-shadow-lg" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.85 7h10.29l1.04 3H5.81l1.04-3zM19 17H5v-4h14v4z"/>
+                <circle cx="7.5" cy="14.5" r="1.5"/>
+                <circle cx="16.5" cy="14.5" r="1.5"/>
+            </svg>
+        </div>
+     
+    </div>
+
+    <!-- 2. STICKY TOP HEADER -->
+    <header class="sticky top-0 z-40 bg-ivory/90 backdrop-blur-md border-b border-dgreen/15 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <!-- Left Brand -->
+            <a href="#" class="flex items-center space-x-2 group">
+                <div class="w-9 h-9 rounded-xl bg-dgreen text-ivory-light flex items-center justify-center group-hover:rotate-6 transition-transform">
+                    <i class="fa-solid fa-car text-sm"></i>
+                </div>
+                <span class="font-jua text-lg sm:text-xl text-dgreen tracking-wide">
+                    베이즈정리 & 자율주행
+                </span>
+            </a>
+
+         
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow max-w-5xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-10 space-y-12 sm:space-y-16">
+
+        <!-- HERO INTRO BANNER -->
+        <section class="text-center space-y-4 pt-2">
+            <div class="inline-flex items-center space-x-2 bg-dgreen-soft px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold text-dgreen border border-dgreen/20">
+                <i class="fa-solid fa-graduation-cap"></i>
+                <span>수학 & 데이터 융합 탐구 프로젝트 후속탐구</span>
+            </div>
+            <h2 class="text-2xl sm:text-4xl font-bold font-jua text-dgreen leading-tight">
+                자율주행차는 악천후 속에서 어떻게 위치를 파악할까?
+            </h2>
+          
+        </section>
+
+        <!-- 3. FIRST SCREEN MENU (처음 화면 2x2 버튼 4개) -->
+        <section class="bg-white/80 p-5 sm:p-8 rounded-3xl border-2 border-dgreen/15 shadow-md backdrop-blur-sm">
+            <h3 class="text-center font-jua text-xl sm:text-2xl text-brown mb-6 flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-compass text-dgreen"></i>
+                <span>탐구 주제를 클릭해 이동하세요</span>
+            </h3>
+
+            <!-- 2x2 Grid Buttons -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+
+                <!-- Button 1: 베이즈 정리란? -->
+                <a href="#bayes" class="hover-card group bg-ivory-light border-2 border-dgreen/20 hover:border-dgreen p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-2xl bg-dgreen text-ivory-light flex items-center justify-center text-xl group-hover:scale-110 transition-transform shadow-sm">
+                            <i class="fa-solid fa-calculator"></i>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-bold text-brown">01. 핵심 개념</span>
+                            <span class="font-jua text-xl text-dgreen">베이즈 정리란?</span>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-dgreen group-hover:translate-x-1 transition-transform"></i>
+                </a>
+
+                <!-- Button 2: 후속 활동 동기 -->
+                <a href="#motive" class="hover-card group bg-ivory-light border-2 border-dgreen/20 hover:border-dgreen p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-2xl bg-brown text-ivory-light flex items-center justify-center text-xl group-hover:scale-110 transition-transform shadow-sm">
+                            <i class="fa-solid fa-lightbulb"></i>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-bold text-brown">02. 탐구 배경</span>
+                            <span class="font-jua text-xl text-dgreen">후속 활동 동기</span>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-dgreen group-hover:translate-x-1 transition-transform"></i>
+                </a>
+
+                <!-- Button 3: 관련 도서 및 관련 직종 -->
+                <a href="#books-careers" class="hover-card group bg-ivory-light border-2 border-dgreen/20 hover:border-dgreen p-5 rounded-2xl flex items-center justify-between shadow-sm">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-2xl bg-dgreen-light text-ivory-light flex items-center justify-center text-xl group-hover:scale-110 transition-transform shadow-sm">
+                            <i class="fa-solid fa-book-open"></i>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-bold text-brown">03. 추천 및 진로</span>
+                            <span class="font-jua text-xl text-dgreen">관련 도서 및 관련 직종</span>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-chevron-right text-dgreen group-hover:translate-x-1 transition-transform"></i>
+                </a>
+
+                <!-- Button 4: 시뮬레이션 -->
+                <a href="#simulation" class="hover-card group bg-dgreen text-ivory-light border-2 border-dgreen p-5 rounded-2xl flex items-center justify-between shadow-md">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-12 h-12 rounded-2xl bg-ivory-light text-dgreen flex items-center justify-center text-xl group-hover:scale-110 transition-transform shadow-sm">
+                            <i class="fa-solid fa-flask"></i>
+                        </div>
+                        <div>
+                            <span class="block text-xs font-bold text-ivory-dark">04. 실습 및 실험</span>
+                            <span class="font-jua text-xl text-ivory-light">시뮬레이션</span>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-play text-ivory-light group-hover:translate-x-1 transition-transform"></i>
+                </a>
+
+            </div>
+        </section>
+
+        <!-- SECTION 1: [베이즈 정리란?] -->
+        <section id="bayes" class="scroll-mt-20 space-y-6">
+            <div class="flex items-center space-x-3 border-b-2 border-dgreen/20 pb-3">
+                <div class="w-10 h-10 rounded-xl bg-dgreen text-ivory-light flex items-center justify-center font-jua text-lg shadow-sm">
+                    01
+                </div>
+                <h3 class="font-jua text-2xl sm:text-3xl text-dgreen">베이즈 정리란?</h3>
+            </div>
+
+            <div class="grid grid-cols-1 gap-5">
+                
+                <!-- Card 1 -->
+                <div class="bg-white p-6 sm:p-7 rounded-2xl border border-dgreen/15 shadow-sm space-y-3">
+                    <div class="flex items-center space-x-2 text-dgreen font-bold text-lg">
+                        <i class="fa-solid fa-check-circle text-dgreen-light"></i>
+                        <h4 class="font-jua text-xl">베이즈 정리란?</h4>
+                    </div>
+                    <p class="text-base text-brown leading-relaxed pl-4 sm:pl-6 bg-ivory p-4 rounded-xl border-l-4 border-dgreen">
+                        새로운 증거를 바탕으로 어떤 사건이 일어날 확률을 갱신하는 수학적 공식입니다.
+                    </p>
+
+                    <!-- Formula Graphic -->
+                    <div class="mt-4 p-4 bg-dgreen-soft rounded-xl text-center border border-dgreen/20 space-y-1">
+                        <span class="text-xs font-bold text-dgreen tracking-wider uppercase">베이즈 정리 수식 표기</span>
+                        <div class="font-serif text-lg sm:text-2xl font-bold text-dgreen my-1">
+                            P(A|B) = [ P(B|A) × P(A) ] ÷ P(B)
+                        </div>
+                        <p class="text-xs text-brown">
+                            (사후확률 = 가능도 × 사전확률 ÷ 증거확률)
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="bg-white p-6 sm:p-7 rounded-2xl border border-dgreen/15 shadow-sm space-y-3">
+                    <div class="flex items-center space-x-2 text-dgreen font-bold text-lg">
+                        <i class="fa-solid fa-diagram-project text-dgreen-light"></i>
+                        <h4 class="font-jua text-xl">베이즈 필터란?</h4>
+                    </div>
+                    <p class="text-base text-brown leading-relaxed pl-4 sm:pl-6 bg-ivory p-4 rounded-xl border-l-4 border-brown">
+                        베이즈 정리를 시간 순서에 따라 반복 적용해 움직이는 물체의 상태를 추정하는 알고리즘을 말합니다.
+                    </p>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="bg-white p-6 sm:p-7 rounded-2xl border border-dgreen/15 shadow-sm space-y-3">
+                    <div class="flex items-center space-x-2 text-dgreen font-bold text-lg">
+                        <i class="fa-solid fa-car-side text-dgreen-light"></i>
+                        <h4 class="font-jua text-xl">자율주행차와는 어떤 관계가 있을까?</h4>
+                    </div>
+                    <p class="text-base text-brown leading-relaxed pl-4 sm:pl-6 bg-ivory p-4 rounded-xl border-l-4 border-dgreen-light">
+                        자율주행차의 센서는 악천후나 노이즈 때문에 100% 신뢰할 수는 없습니다. 따라서 예측값과 센서의 측정값에 가중치를 부여해 진짜 위치를 찾아내는 것입니다.
+                    </p>
+                </div>
+
+            </div>
+
+            <!-- Interactive Bayes Weight Tool -->
+            <div class="bg-brown-soft p-5 sm:p-6 rounded-2xl border border-brown/20 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h5 class="font-jua text-lg text-brown flex items-center space-x-2">
+                        <i class="fa-solid fa-sliders text-dgreen"></i>
+                        <span>날씨 변화에 따른 센서 가중치 체험</span>
+                    </h5>
+                    <span class="text-xs bg-white text-brown font-bold px-2.5 py-1 rounded-full border border-brown/10">가중치 시뮬레이터</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="bg-white p-4 rounded-xl border border-brown/10 space-y-2">
+                        <label class="block text-xs font-bold text-brown">날씨 / 노이즈 상태 조절</label>
+                        <input type="range" id="weather-range" min="1" max="100" value="20" class="w-full accent-dgreen cursor-pointer">
+                        <div class="flex justify-between text-xs text-brown/80 font-bold">
+                            <span>맑음 (노이즈 작음)</span>
+                            <span>폭우/안개 (노이즈 큼)</span>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-xl border border-brown/10 flex flex-col justify-center">
+                        <span class="text-xs font-bold text-brown mb-1">칼만 게인(K) & 센서 신뢰도</span>
+                        <div id="weight-display" class="font-bold text-sm text-dgreen">
+                            맑은 날: 센서 측정값 80% 반영 (가중치 K = 0.80)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 2: [후속 활동 동기] -->
+        <section id="motive" class="scroll-mt-20 space-y-6">
+            <div class="flex items-center space-x-3 border-b-2 border-dgreen/20 pb-3">
+                <div class="w-10 h-10 rounded-xl bg-brown text-ivory-light flex items-center justify-center font-jua text-lg shadow-sm">
+                    02
+                </div>
+                <h3 class="font-jua text-2xl sm:text-3xl text-dgreen">후속 활동 동기</h3>
+            </div>
+
+            <div class="bg-white p-6 sm:p-8 rounded-3xl border-2 border-brown/20 shadow-sm space-y-5">
+                <div class="inline-flex items-center space-x-2 bg-brown-soft text-brown font-bold text-xs sm:text-sm px-3.5 py-1.5 rounded-full">
+                    <i class="fa-solid fa-quote-left text-dgreen"></i>
+                    <span>탐구 동기</span>
+                </div>
+
+                <p class="text-base sm:text-lg text-brown leading-relaxed font-medium bg-ivory p-5 sm:p-6 rounded-2xl border border-brown/10">
+                    융합 활동을 할 때 자율주행차에 어떠한 수학적 원리가 사용되는지 궁금하여 베이즈 정리와 자율주행차에 대해 탐구를 진행했었습니다. 이후 실제 도로에서 돌발 상황이 발생했을 시, 어떤 식으로 베이즈 확률이 변화하는지 궁금증이 생겨 자율주행 센서 데이터 보정이 어떻게 일어나는지 탐구해보고자 했습니다.
+                </p>
+
+            
+            </div>
+        </section>
+
+        <!-- SECTION 3: [관련 도서 및 관련 직종] -->
+        <section id="books-careers" class="scroll-mt-20 space-y-8">
+            <div class="flex items-center space-x-3 border-b-2 border-dgreen/20 pb-3">
+                <div class="w-10 h-10 rounded-xl bg-dgreen-light text-ivory-light flex items-center justify-center font-jua text-lg shadow-sm">
+                    03
+                </div>
+                <h3 class="font-jua text-2xl sm:text-3xl text-dgreen">관련 도서 및 관련 직종</h3>
+            </div>
+
+            <!-- 1. Related Books -->
+            <div class="space-y-4">
+                <h4 class="font-jua text-xl text-brown flex items-center space-x-2">
+                    <i class="fa-solid fa-book text-dgreen"></i>
+                    <span>추천 도서</span>
+                </h4>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                    <!-- Book 1 -->
+                    <div class="hover-card bg-white p-5 rounded-2xl border border-dgreen/15 shadow-sm flex flex-col items-center text-center">
+                        <div class="w-full h-56 rounded-xl bg-ivory mb-4 flex items-center justify-center p-2 border border-ivory-dark overflow-hidden">
+                            <img src="https://image.yes24.com/goods/140998072/XL" 
+                                 alt="모든 것은 예측 가능하다" 
+                                 class="max-h-full max-w-full object-contain rounded drop-shadow-md"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/300x420/1E4D2B/FAF6F0?text=모든+것은+예측+가능하다';">
+                        </div>
+                        <h5 class="font-jua text-lg text-dgreen mb-1">&lt;모든 것은 예측 가능하다&gt;</h5>
+                       
+                    </div>
+
+                    <!-- Book 2 -->
+                    <div class="hover-card bg-white p-5 rounded-2xl border border-dgreen/15 shadow-sm flex flex-col items-center text-center">
+                        <div class="w-full h-56 rounded-xl bg-ivory mb-4 flex items-center justify-center p-2 border border-ivory-dark overflow-hidden">
+                            <img src="https://image.yes24.com/goods/90406120/XL" 
+                                 alt="수학으로 풀어보는 칼만 필터 알고리즘" 
+                                 class="max-h-full max-w-full object-contain rounded drop-shadow-md"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/300x420/5D4037/FAF6F0?text=칼만+필터+알고리즘';">
+                        </div>
+                        <h5 class="font-jua text-lg text-dgreen mb-1">&lt;수학으로 풀어보는 칼만 필터 알고리즘&gt;</h5>
+                       
+                    </div>
+
+                    <!-- Book 3 -->
+                    <div class="hover-card bg-white p-5 rounded-2xl border border-dgreen/15 shadow-sm flex flex-col items-center text-center">
+                        <div class="w-full h-56 rounded-xl bg-ivory mb-4 flex items-center justify-center p-2 border border-ivory-dark overflow-hidden">
+                            <img src="https://contents.kyobobook.co.kr/prvw/002/987/56/5800009298756/580320300340298756001.jpg" 
+                                 alt="확률론적 로보틱스" 
+                                 class="max-h-full max-w-full object-contain rounded drop-shadow-md"
+                                 onerror="this.onerror=null; this.src='https://placehold.co/300x420/2D6A3D/FAF6F0?text=확률론적+로보틱스';">
+                        </div>
+                        <h5 class="font-jua text-lg text-dgreen mb-1">&lt;확률론적 로보틱스&gt;</h5>
+                        
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 2. Related Careers -->
+            <div class="bg-white p-6 sm:p-8 rounded-3xl border-2 border-dgreen/15 shadow-sm space-y-6">
+                <div class="flex items-center space-x-2 border-b border-dgreen/10 pb-3">
+                    <i class="fa-solid fa-briefcase text-xl text-dgreen"></i>
+                    <h4 class="font-jua text-xl text-dgreen">관련 진로 및 직업 정보</h4>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="p-4 rounded-2xl bg-ivory border border-dgreen/10 space-y-1">
+                        <span class="text-xs font-bold text-dgreen">자율주행 핵심</span>
+                        <h5 class="font-jua text-lg text-brown">센서 퓨전 엔지니어</h5>
+                        <p class="text-xs text-brown/80">라이다, 라다, 카메라 데이터를 합성해 최적 위치 측정</p>
+                    </div>
+
+                    <div class="p-4 rounded-2xl bg-ivory border border-dgreen/10 space-y-1">
+                        <span class="text-xs font-bold text-dgreen">로보틱스</span>
+                        <h5 class="font-jua text-lg text-brown">로봇 제어 SW 개발자</h5>
+                        <p class="text-xs text-brown/80">베이즈/칼만 필터 알고리즘 기반 이동 로봇 제어</p>
+                    </div>
+
+                    <div class="p-4 rounded-2xl bg-ivory border border-dgreen/10 space-y-1">
+                        <span class="text-xs font-bold text-dgreen">인공지능</span>
+                        <h5 class="font-jua text-lg text-brown">AI 확률모델 연구원</h5>
+                        <p class="text-xs text-brown/80">불확실한 상황에서 알고리즘 최적 판단 모델 구축</p>
+                    </div>
+
+                    <div class="p-4 rounded-2xl bg-ivory border border-dgreen/10 space-y-1">
+                        <span class="text-xs font-bold text-dgreen">수리학/통계</span>
+                        <h5 class="font-jua text-lg text-brown">데이터 사이언티스트</h5>
+                        <p class="text-xs text-brown/80">사전 확률 및 데이터 기반 예측 시스템 개발</p>
+                    </div>
+                </div>
+
+                <!-- Useful Career Site Links & Tips -->
+                <div class="p-5 bg-dgreen-soft rounded-2xl border border-dgreen/20 space-y-3">
+                    <h5 class="font-jua text-base text-dgreen flex items-center space-x-2">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>진로 탐색 사이트 및 추천 팁</span>
+                    </h5>
+                    <p class="text-xs sm:text-sm text-brown leading-relaxed">
+                        아래 사이트에서 보다 더 정확한 정보를 검색할 수 있습니다!
+                    </p>
+
+                    <div class="flex flex-wrap gap-3 pt-1">
+                        <a href="https://www.career.go.kr" target="_blank" rel="noopener noreferrer" 
+                           class="inline-flex items-center space-x-2 px-4 py-2 bg-white rounded-xl text-xs font-bold text-dgreen border border-dgreen/20 hover:bg-dgreen hover:text-ivory-light transition-colors shadow-sm">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                            <span>커리어넷 (Career.go.kr)</span>
+                        </a>
+                        <a href="https://www.work.go.kr" target="_blank" rel="noopener noreferrer" 
+                           class="inline-flex items-center space-x-2 px-4 py-2 bg-white rounded-xl text-xs font-bold text-brown border border-brown/20 hover:bg-brown hover:text-ivory-light transition-colors shadow-sm">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                            <span>워크넷 (Work.go.kr)</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECTION 4: [시뮬레이션] -->
+        <section id="simulation" class="scroll-mt-20 space-y-6">
+            <div class="flex items-center space-x-3 border-b-2 border-dgreen/20 pb-3">
+                <div class="w-10 h-10 rounded-xl bg-dgreen text-ivory-light flex items-center justify-center font-jua text-lg shadow-sm">
+                    04
+                </div>
+                <h3 class="font-jua text-2xl sm:text-3xl text-dgreen">시뮬레이션</h3>
+            </div>
+
+            <div class="bg-white p-6 sm:p-8 rounded-3xl border-2 border-dgreen/20 shadow-md space-y-6">
+                <div>
+                    <span class="px-3 py-1 bg-dgreen-soft text-dgreen text-xs font-bold rounded-full">시뮬레이션 제작</span>
+                    <p class="text-base sm:text-lg text-brown leading-relaxed font-bold mt-2">
+                        후속 탐구를 하며 이해를 돕기 위해 만든 시뮬레이션입니다.
+                    </p>
+                </div>
+
+                <!-- Simulation Tip Box -->
+                <div class="bg-ivory p-5 sm:p-6 rounded-2xl border-2 border-brown/20 space-y-3">
+                    <div class="flex items-center space-x-2 text-brown font-bold text-lg border-b border-brown/10 pb-2">
+                        <i class="fa-solid fa-circle-question text-amber-600"></i>
+                        <span class="font-jua text-xl">시뮬레이션 보는 팁!</span>
+                    </div>
+
+                    <div class="text-xs sm:text-sm text-brown space-y-2.5 leading-relaxed">
+                        <p>
+                            • <strong class="text-dgreen font-bold">센서 노이즈 R :</strong> 측정 오차를 말합니다. 맑은 날에는 R이 작고, 폭우나 안개가 있을 때에는 R이 커집니다.
+                        </p>
+                        <p>
+                            • <strong class="text-dgreen font-bold">프로세스 노이즈 Q :</strong> 예측 오차를 의미합니다.
+                        </p>
+                        <p>
+                            • <strong class="text-dgreen font-bold">칼만 게인 K :</strong> 센서 신뢰도를 의미합니다. K는 0~1 사이의 값으로, 폭우가 오면 R이 커져서 K가 0에 가까워진다고 볼 수 있습니다.
+                        </p>
+                        <p>
+                            • <strong class="text-dgreen font-bold">추정 불확실성 :</strong> 현재 필터가 추정하는 위치 분포의 분산, 즉, 오차범위를 말합니다.
+                        </p>
+                        <p class="pt-2 text-dgreen font-bold bg-dgreen-soft p-3 rounded-xl border border-dgreen/20">
+                            <i class="fa-solid fa-square-check mr-1"></i>
+                            해당 시뮬레이션은 예상 시나리오 6개로 이루어져 있으며, 시뮬레이션 좌측에 오차율을 보여주고 있습니다.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- DIRECT LINK BUTTON (MUST BE INCLUDED EXACTLY AS SPECIFIED) -->
+                <div class="pt-3 text-center">
+                    <a href="https://25-10423-lab.github.io/simul_auto_car/" 
+                       target="_blank" 
+                       rel="noopener noreferrer" 
+                       class="inline-flex items-center justify-center space-x-3 bg-dgreen hover:bg-dgreen-dark text-ivory-light font-jua text-xl sm:text-2xl px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 border-2 border-dgreen-light group w-full sm:w-auto">
+                        <i class="fa-solid fa-play-circle text-2xl group-hover:rotate-12 transition-transform"></i>
+                        <span>[시뮬레이션 바로가기]</span>
+                        <i class="fa-solid fa-arrow-right text-sm"></i>
+                    </a>
+                    <p class="text-xs text-brown/70 mt-3 font-medium">
+                        * 클릭 시 자율주행 시뮬레이션 웹페이지로 이동합니다.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-dgreen text-ivory-light py-8 border-t border-dgreen-dark mt-12">
+        <div class="max-w-5xl mx-auto px-4 text-center space-y-2">
+            <div class="flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-car text-ivory"></i>
+                <span class="font-jua text-lg">베이즈 정리와 자율 주행차</span>
+            </div>
+            <p class="text-xs text-ivory/80">
+                선배의 탐구 내용을 후배들에게 쉽게 전달하기 위해 제작된 웹페이지입니다.
+            </p>
+            <p class="text-xs text-ivory/60">
+                Visual Studio Live Server Compatible.
+            </p>
+        </div>
+    </footer>
+
+   
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // Opening Splash Screen Handler
+        window.addEventListener('load', () => {
+            const splash = document.getElementById('splash-screen');
+            const splashText = document.getElementById('splash-text');
+
+            setTimeout(() => {
+                if (splashText) splashText.style.opacity = '0';
+            }, 1400);
+
+            setTimeout(() => {
+                if (splash) {
+                    splash.style.opacity = '0';
+                    splash.style.visibility = 'hidden';
+                }
+            }, 1800);
+        });
+
+        // Interactive Weather Slider Simulation
+        const weatherRange = document.getElementById('weather-range');
+        const weightDisplay = document.getElementById('weight-display');
+
+        if (weatherRange && weightDisplay) {
+            weatherRange.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value);
+                const K = (50 / (50 + val)).toFixed(2);
+                const percent = Math.round(K * 100);
+
+                if (val < 35) {
+                    weightDisplay.innerHTML = `<span class="text-dgreen font-bold">맑은 날씨:</span> 센서 측정값 <strong class="underline">${percent}%</strong> 반영 (가중치 K = ${K})`;
+                } else if (val < 70) {
+                    weightDisplay.innerHTML = `<span class="text-amber-700 font-bold">소나기/노이즈:</span> 내비 예측값과 센서 균형 보정 (가중치 K = ${K})`;
+                } else {
+                    weightDisplay.innerHTML = `<span class="text-rose-800 font-bold">폭우/안개:</span> 센서 불확실로 예측값 위주 <strong class="underline">${100 - percent}%</strong> 반영 (가중치 K = ${K})`;
+                }
+            });
+        }
+
+        // Modal Toggle Function
+        function toggleModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.toggle('hidden');
+            }
+        }
+    </script>
+</body>
+</html>
